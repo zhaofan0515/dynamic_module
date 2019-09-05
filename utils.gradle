@@ -1,0 +1,207 @@
+/**
+ *
+ * 工具类 gradle
+ */
+
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+
+ext.getCurrentFlavor = { String libName, String defaultName ->
+    println "getCurrentFlavor args:" + libName + "," + defaultName
+
+    Gradle gradle = getGradle()
+    String tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
+    Pattern pattern
+    if (tskReqStr.contains("assemble")) {
+        pattern = Pattern.compile(":" + libName + ":assemble(\\w+)(Sources)")
+    } else {
+        pattern = Pattern.compile(":" + libName + ":generate(\\w+)(Sources)")
+    }
+
+    Matcher matcher = pattern.matcher(tskReqStr)
+
+    if (matcher.find()) {
+        String result = toLowerCaseFirstOne(matcher.group(1))
+
+        println "getCurrentFlavor:" + result
+        saveToLocal(libName, result)
+        return result.toString()
+    } else {
+        String result = getFromLocal(libName, defaultName)
+        println "getCurrentFlavor: no match one， return local or default:" + result
+        return result
+    }
+}
+
+def toLowerCaseFirstOne(String value) {
+    if (value == null || value.isEmpty()) {
+        return ""
+    }
+
+    if (Character.isLowerCase(value.charAt(0))) {
+        return value;
+    } else {
+        return (new StringBuilder()).append(Character.toLowerCase(value.charAt(0))).append(value.substring(1)).toString();
+    }
+}
+
+
+def saveToLocal(String key, String value) {
+    File localFile = project.rootProject.file('local.properties')
+    Properties properties = new Properties()
+    properties.load(localFile.newDataInputStream())
+    properties.setProperty(key, value)
+    properties.save(localFile.newDataOutputStream(), "update-" + key + "[" + value + "]")
+}
+
+
+def getFromLocal(String key, String defaultName) {
+    File localFile = project.rootProject.file('local.properties')
+    Properties properties = new Properties()
+    properties.load(localFile.newDataInputStream())
+    return properties.get(key, defaultName)
+}
+
+ext.getLocalProperties = { String fileName ->
+    File localFile = project.rootProject.file(fileName)
+    Properties properties = new Properties()
+    properties.load(localFile.newDataInputStream())
+    return properties
+
+}
+
+ext.isDevelopBranch = {
+    String gitBranch = 'git symbolic-ref --short -q HEAD'.execute(null, rootProject.projectDir).text.trim()
+    if (gitBranch.contains("develop") || gitBranch.contains("master")) {
+        return true
+    } else {
+        return false
+    }
+}
+
+ext.log = { String tag, Object msg ->
+    System.err.println("============================= " + tag + " : ")
+    println "" + msg + "\n"
+}
+
+ext.throw = { String t ->
+    throw new IllegalArgumentException(t)
+}
+
+ext.requestGet = { String method, String url, Callback callback ->
+    try {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod(method);
+        conn.setConnectTimeout(10 * 1000);
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
+        }
+
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            log("request", code + "  " + msg)
+
+        }
+
+        callback.onResponse(code, msg)
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+
+
+ext.requestMethod = { String method, String url, String body, Callback callback ->
+    try {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestProperty("Authorization", "token 89ddd3ec4c89cbca9126dea4d69f4adc13ec173d");
+
+        conn.setRequestMethod(method);
+        conn.setConnectTimeout(10 * 1000);
+
+        //请求头的信息
+        conn.setRequestProperty("Content-Length", String.valueOf(body.length()));
+        conn.setRequestProperty("Cache-Control", "max-age=0");
+
+        //设置conn可以写请求的内容
+        conn.setDoOutput(true);
+        conn.getOutputStream().write(body.getBytes());
+
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
+        }
+
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            //  Log.e("TAG", msg);
+            log("request", code + "  " + msg)
+        }
+
+        callback.onResponse(code, msg)
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+
+public interface Callback {
+    void onResponse(int code, String response)
+}
+
+/*
+import com.android.utils.ILogger
+import com.android.annotations.NonNull
+
+
+public class MiLogger2 implements ILogger {
+
+    @Override
+    void error(
+            @com.android.annotations.Nullable Throwable t,
+            @com.android.annotations.Nullable String msgFormat, Object... args) {
+        System.err.println(String.format("========== ERROR : " + msgFormat, args))
+        if (t) t.printStackTrace(System.err)
+    }
+
+    @Override
+    void warning(@NonNull String msgFormat, Object... args) {
+        System.err.println(String.format("========== WARNING : " + msgFormat, args))
+    }
+
+    @Override
+    void info(@NonNull String msgFormat, Object... args) {
+        System.out.println(String.format("========== INFO : " + msgFormat, args))
+    }
+
+    @Override
+    void verbose(@NonNull String msgFormat, Object... args) {
+        // System.out.println(String.format("========== DEBUG : " + msgFormat, args))
+    }
+}*/
