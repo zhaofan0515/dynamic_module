@@ -1,0 +1,131 @@
+apply from: 'settings_module.gradle'
+apply from: 'version_module.gradle'
+apply from: 'utils.gradle'
+
+
+def configurationsMap = new HashMap()
+
+gradle.allprojects({ project ->
+    configurations {
+        configurationsMap.put(project.name, configurations)
+    }
+})
+
+
+gradle.ext.compile = { project, name ->
+    applySetting()
+    def handler = project.dependencies
+
+    println "33333333333333333333333333333333333333333333 dependencies: " + name + "  setting_module: " + setting_module
+
+    if (setting_module.isEmpty()) {
+        return
+    }
+
+    def ver = setting_module[name]
+    if (!ver) {
+        if (setting_module.containsKey(name)) {
+            handler.api project.project(":$name")
+        } else {
+            //don't compile
+        }
+    } else if (ver == 'remote') {
+        gradle.ext.compileRemote(project, name)
+
+    } else if (ver == 'false') {
+        //don't compile
+    }
+
+}
+
+
+gradle.ext.compileRemote = { project, name ->
+    def handler = project.dependencies
+    println "99999999999999999999999999999999 dependencies remote " + //project.android.applicationVariants+" "+
+            project + " " + rootProject.subprojects + " " + rootProject.subprojects[0]
+
+    rootProject.subprojects[0].android.applicationVariants.all { v ->
+        String flavorShort = ""
+        def flavor = v.name //getCurrentFlavor(project.name, "")
+        def methodName = v.name + "Api"
+        def it = configurationsMap.entrySet().iterator()
+        while (it.hasNext()) {
+            it.next().value.maybeCreate(methodName)
+        }
+
+        def remote_lib = remote_module[name + "-" + flavor]
+        if (!remote_lib) {
+            def env = ""
+            if (flavor.toString().endsWith("PreRelease")) {
+                env = "preRelease"
+                flavorShort = flavor.toString().replace("PreRelease", "")
+            } else if (flavor.toString().endsWith("Release")) {
+                env = "release"
+                flavorShort = flavor.toString().replace("Release", "")
+            } else if (flavor.toString().endsWith("Debug")) {
+                env = "debug"
+                flavorShort = flavor.toString().replace("Debug", "")
+            }
+
+            remote_lib = remote_module[name + "-" + env]
+            if (!remote_lib) {
+                remote_lib = remote_module[name]
+            }
+        }
+
+        if (!remote_lib) {
+            remote_lib = remote_module[name + "-" + flavorShort + "Release"]
+        }
+
+        if (!remote_lib) {
+            remote_lib = remote_module[name + "-" + flavorShort]
+        }
+
+        if (!remote_lib) {
+            remote_lib = remote_module[name + "Release"]
+        }
+
+        if (!remote_lib) {
+            remote_lib = remote_module[name]
+        }
+
+        if (remote_lib) {
+            println "99999999999999999999999999999999 dependencies remote " + methodName + " " + remote_lib
+
+            handler.add(methodName, remote_lib)
+        }
+    }
+
+}
+
+
+
+ext.moduleSwitch = { module ->
+    applySetting()
+    println "77777777777777777777777 dependencies selectModule " + setting_module
+    return setting_module
+
+}
+
+ext.applySetting = {
+    if (!isDevelopSetting()) {
+        apply from: 'private_settings.gradle'
+    }
+}
+
+
+ext.isDevelopSetting = {
+    File localFile = new File('private_settings.gradle')
+    if (!localFile.exists() ||isDevelopBranch()) {
+        return true
+    } else {
+        return false
+    }
+}
+
+
+
+
+
+
+
