@@ -1,0 +1,122 @@
+
+downloadFile()
+download_setting_deps()
+
+
+def download_setting_deps() {
+    try {
+        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token=89ddd3ec4c89cbca9126dea4d69f4adc13ec173d";
+        URL url = new URL(url_create);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10 * 1000);
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
+        }
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            //  Log.e("TAG", msg);
+            println "=============================== download_setting_deps : \n" + msg
+        }
+
+        if (code == 200) {
+            String encodeContent = msg.split("\"content\":")[1].split("\"")[1];
+            java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+            String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
+
+            File file = new File("setting_deps.gradle")
+            file.createNewFile()
+
+            try {
+                FileWriter fw = new FileWriter(file)
+                fw.flush();
+                fw.write(content);
+                fw.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+
+        apply from: 'setting_deps.gradle'
+
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+
+}
+
+
+def downloadFile() {
+    try {
+        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/1.txt?access_token=89ddd3ec4c89cbca9126dea4d69f4adc13ec173d";
+        URL url = new URL(url_create);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10 * 1000);
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
+        }
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            //  Log.e("TAG", msg);
+            //   println "2222222222222222222222222222222222222222222222222222223333 zhaofanfanfan downloadFile " + msg
+
+        }
+
+        if (code == 200) {
+            String encodeContent = msg.split("\"content\":")[1].split("\"")[1];
+            java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+            String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
+            println("============================file\n"+getRootDir().toString()+"\\"+"1.gradle")
+
+           // File file = new File(getRootDir().toString()+"\\gradle\\"+"1.gradle")
+            File file =new File("version_module.gradle")
+            file.createNewFile()
+
+            try {
+                FileWriter fw = new FileWriter(file)
+                fw.flush();
+                fw.write(content);
+                fw.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+
+}
+
