@@ -48,7 +48,7 @@ def toLowerCaseFirstOne(String value) {
 
 
 def saveToLocal(String key, String value) {
-    File localFile = project.rootProject.file('local.properties')
+    File localFile = new File(getRootDir().toString() + "\\" + "local.properties")
     Properties properties = new Properties()
     properties.load(localFile.newDataInputStream())
     properties.setProperty(key, value)
@@ -57,18 +57,22 @@ def saveToLocal(String key, String value) {
 
 
 def getFromLocal(String key, String defaultName) {
-    File localFile = project.rootProject.file('local.properties')
+    File localFile = new File(getRootDir().toString() + "\\" + "local.properties")
     Properties properties = new Properties()
     properties.load(localFile.newDataInputStream())
     return properties.get(key, defaultName)
 }
 
 ext.getLocalProperties = { String fileName ->
-    File localFile = project.rootProject.file(fileName)
+    File localFile = new File(getRootDir().toString() + "\\" + "module.properties")
     Properties properties = new Properties()
     properties.load(localFile.newDataInputStream())
     return properties
 
+}
+
+ext.getToken = {
+    return getLocalProperties("module.properties")["token"]
 }
 
 ext.isDevelopBranch = {
@@ -128,7 +132,7 @@ ext.requestGet = { String method, String url, Callback callback ->
 ext.requestMethod = { String method, String url, String body, Callback callback ->
     try {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setRequestProperty("Authorization", "token 89ddd3ec4c89cbca9126dea4d69f4adc13ec173d");
+        conn.setRequestProperty("Authorization", "token d886f45419849645266807d9a32c5f4af6c38797");
 
         conn.setRequestMethod(method);
         conn.setConnectTimeout(10 * 1000);
