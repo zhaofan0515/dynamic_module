@@ -4,7 +4,7 @@ download_setting_deps()
 
 def download_setting_deps() {
     try {
-        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token=d886f45419849645266807d9a32c5f4af6c38797";
+        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token=2d77a91f8a272f28697390fba4b0fad94976d84c";
                 println "=============================== download_setting_deps url: \n" + url_create
 
         URL url = new URL(url_create);
