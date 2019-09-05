@@ -1,4 +1,4 @@
-apply from: 'utils.gradle'
+apply from: getRootDir() + "\\" + 'utils.gradle'
 
 downloadFile()
 download_setting_deps()
