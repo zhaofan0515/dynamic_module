@@ -1,4 +1,4 @@
-apply from: getRootDir() + "\\" + 'utils.gradle'
+apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/utils.gradle'
 
 downloadFile()
 download_setting_deps()
