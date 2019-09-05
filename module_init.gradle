@@ -1,12 +1,13 @@
+apply from: 'utils.gradle'
+
 downloadFile()
 download_setting_deps()
 
 
 def download_setting_deps() {
     try {
-        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token=2d77a91f8a272f28697390fba4b0fad94976d84c";
-                println "=============================== download_setting_deps url: \n" + url_create
-
+        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token="+ getToken();
+        println "=============================== download_setting_deps url: \n" + url_create
         URL url = new URL(url_create);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
