@@ -1,4 +1,3 @@
-
 downloadFile()
 download_setting_deps()
 
@@ -36,7 +35,7 @@ def download_setting_deps() {
             java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
             String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
 
-            File file = new File("setting_deps.gradle")
+            File file = new File(getRootDir().toString() + "\\" + "setting_deps.gradle")
             file.createNewFile()
 
             try {
@@ -51,7 +50,7 @@ def download_setting_deps() {
         }
 
 
-        apply from: 'setting_deps.gradle'
+        apply from: getRootDir().toString() + "\\" + 'setting_deps.gradle'
 
 
     } catch (Exception e) {
@@ -95,10 +94,10 @@ def downloadFile() {
             String encodeContent = msg.split("\"content\":")[1].split("\"")[1];
             java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
             String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
-            println("============================file\n"+getRootDir().toString()+"\\"+"1.gradle")
+            println("============================file\n" + getRootDir().toString() + "\\" + "1.gradle")
 
-           // File file = new File(getRootDir().toString()+"\\gradle\\"+"1.gradle")
-            File file =new File("version_module.gradle")
+            // File file = new File(getRootDir().toString()+"\\gradle\\"+"1.gradle")
+            File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
             file.createNewFile()
 
             try {
