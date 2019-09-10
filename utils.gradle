@@ -63,8 +63,18 @@ def getFromLocal(String key, String defaultName) {
     return properties.get(key, defaultName)
 }
 
+
+ext.saveToLocal = { File localFile, String key, String value ->
+    Properties properties = new Properties()
+    properties.load(localFile.newDataInputStream())
+    properties.setProperty(key, value)
+    properties.store(localFile.newDataOutputStream(),"")
+}
+
+
+
 ext.getLocalProperties = { String fileName ->
-    File localFile = new File(getRootDir().toString() + "\\" + "module.properties")
+    File localFile = new File(getRootDir().toString() + "\\" + fileName)
     Properties properties = new Properties()
     properties.load(localFile.newDataInputStream())
     return properties
@@ -72,7 +82,11 @@ ext.getLocalProperties = { String fileName ->
 }
 
 ext.getToken = {
-    return getLocalProperties("module.properties")["token"]
+    return getLocalProperties("maven_config.properties")["token"]
+}
+
+ext.getMavenUrl = {
+    return getLocalProperties("maven_config.properties")["mavenUrl"]
 }
 
 ext.isDevelopBranch = {
@@ -83,6 +97,18 @@ ext.isDevelopBranch = {
         return false
     }
 }
+
+ext.base64Decode = { String encodeContent ->
+    java.util.Base64.Decoder decoder = java.util.Base64.getDecoder()
+    String content = new String(decoder.decode(encodeContent.replace("\\n", "")))
+    return content
+}
+ext.base64Encode = { String content ->
+    java.util.Base64.Encoder encoder = java.util.Base64.getEncoder()
+    String pushEncodeContent = new String(encoder.encode(content.getBytes()), "UTF-8")
+    return pushEncodeContent
+}
+
 
 ext.log = { String tag, Object msg ->
     System.err.println("============================= " + tag + " : ")
@@ -110,7 +136,7 @@ ext.readFile = { File file ->
     return sb.toString()
 }
 
-ext.saveFile = { File file,String content ->
+ext.saveFile = { File file, String content ->
     file.createNewFile()
 
     try {
@@ -201,33 +227,3 @@ public interface Callback {
     void onResponse(int code, String response)
 }
 
-/*
-import com.android.utils.ILogger
-import com.android.annotations.NonNull
-
-
-public class MiLogger2 implements ILogger {
-
-    @Override
-    void error(
-            @com.android.annotations.Nullable Throwable t,
-            @com.android.annotations.Nullable String msgFormat, Object... args) {
-        System.err.println(String.format("========== ERROR : " + msgFormat, args))
-        if (t) t.printStackTrace(System.err)
-    }
-
-    @Override
-    void warning(@NonNull String msgFormat, Object... args) {
-        System.err.println(String.format("========== WARNING : " + msgFormat, args))
-    }
-
-    @Override
-    void info(@NonNull String msgFormat, Object... args) {
-        System.out.println(String.format("========== INFO : " + msgFormat, args))
-    }
-
-    @Override
-    void verbose(@NonNull String msgFormat, Object... args) {
-        // System.out.println(String.format("========== DEBUG : " + msgFormat, args))
-    }
-}*/
