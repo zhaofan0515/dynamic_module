@@ -68,7 +68,7 @@ ext.saveToLocal = { File localFile, String key, String value ->
     Properties properties = new Properties()
     properties.load(localFile.newDataInputStream())
     properties.setProperty(key, value)
-    properties.store(localFile.newDataOutputStream(),"")
+    properties.store(localFile.newDataOutputStream(), "")
 }
 
 
@@ -87,6 +87,15 @@ ext.getToken = {
 
 ext.getMavenUrl = {
     return getLocalProperties("maven_config.properties")["mavenUrl"]
+}
+
+ext.getVersionUrl = {
+    return getLocalProperties("maven_config.properties")["versionUrl"]
+}
+
+
+ext.rootPath = {
+    return  getRootDir().toString() + "\\"
 }
 
 ext.isDevelopBranch = {
