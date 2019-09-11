@@ -94,7 +94,11 @@ ext.getVersionUrl = {
 }
 
 ext.isOffline = {
-    return getLocalProperties("module_config.properties")["offline"]
+    def offline = getLocalProperties("module_config.properties")["offline"]
+    if (!offline || offline.equals("false")) {
+        return false
+    }else 
+        return true
 }
 
 ext.rootPath = {
