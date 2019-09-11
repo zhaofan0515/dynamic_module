@@ -2,20 +2,43 @@ apply plugin: 'maven'
 
 
 afterEvaluate {
-    def upload = tasks.create("uploadVersions", Upload) {
+    def upload = tasks.create("uploadMavenVersions", Upload) {
         configuration = configurations.archives
         repositories {
             mavenDeployer {
-
                 group = 'upload'
                 doFirst {
                     println "doFirst" + getDependsOn()
-
-                    getApi3()
+                    File file = new File(applyVersionModule())
+                    getGitApi(file)
                 }
+            }
+        }
+    }
 
-                doLast {
-                    println "doLast" + getDependsOn()
+    def upload2 = tasks.create("uploadLibraryVersions", Upload) {
+        configuration = configurations.archives
+        repositories {
+            mavenDeployer {
+                group = 'upload'
+                doFirst {
+                    println "doFirst" + getDependsOn()
+                    File file = new File(applyVersionLib())
+                    getGitApi(file)
+                }
+            }
+        }
+    }
+
+    def upload3 = tasks.create("uploadBuildConfig", Upload) {
+        configuration = configurations.archives
+        repositories {
+            mavenDeployer {
+                group = 'upload'
+                doFirst {
+                    println "doFirst" + getDependsOn()
+                    File file = new File(applyBuildConfig())
+                    getGitApi(file)
                 }
             }
         }
@@ -23,23 +46,23 @@ afterEvaluate {
 }
 
 
-def getApi3() {
+def getGitApi(File file) {
+    String fileName = file.getName()
 
-    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+    requestGet(getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(),
             { code, response ->
                 if (code == 200) {
                     String sha = response.split("\"sha\":")[1].split("\"")[1];
                     log("upload_versions sha ", sha)
 
-                    File file = new File(project.projectDir.toString() + "\\" + "version_module.gradle")
                     if (!file.exists()) {
-                        throwError("请将需要修改的version_module.gradle文件复制到" + project.projectDir + "目录下")
+                        throwError("没有找到version_module.gradle文件")
                     }
 
                     String a = readFile(file)
                     log("upload_versions readFile ", a)
 
-                    postVersions(a, sha)
+                    postVersions(a, sha, fileName)
                 } else {
                     throwError(response)
                 }
@@ -48,19 +71,15 @@ def getApi3() {
 }
 
 
-def postVersions(String content, final String sha) {
+def postVersions(String content, final String sha, String fileName) {
     final String pushEncodeContent = base64Encode(content).replace("\n", "\\n");
 
     String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
 
-    requestMethod("PUT", getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(), body,
+    requestMethod("PUT", getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(), body,
             { code, response ->
                 if (code == 200) {
                     log("upload_versions success", code)
-                    File file = new File(project.projectDir.toString() + "\\" + "version_module.gradle")
-                    if (file.exists()) {
-                        file.delete()
-                    }
                     refreshFile()
                 } else {
                     throwError(response)
@@ -79,7 +98,7 @@ def refreshFile() {
                     String encodeContent = response.split("\"content\":")[1].split("\"")[1];
                     String content = base64Decode(encodeContent)
 
-                    File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
+                    File file = new File(applyVersionModule())
 
                     saveFile(file, content)
 
