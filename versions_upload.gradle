@@ -49,15 +49,15 @@ afterEvaluate {
 def getGitApi(File file) {
     String fileName = file.getName()
 
+    if (!file.exists()) {
+        throwError("没有找到本地" + fileName + "文件")
+    }
+
     requestGet(getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(),
             { code, response ->
                 if (code == 200) {
                     String sha = response.split("\"sha\":")[1].split("\"")[1];
                     log("upload_versions sha ", sha)
-
-                    if (!file.exists()) {
-                        throwError("没有找到version_module.gradle文件")
-                    }
 
                     String a = readFile(file)
                     log("upload_versions readFile ", a)
@@ -92,7 +92,7 @@ ext.refreshFileCount = 0
 
 def refreshFile(String fileName) {
 
-    requestGet(getVersionUrl() + "/contents/" + fileName + "? access_token = " + getToken(),
+    requestGet(getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(),
             { code, response ->
                 if (code == 200) {
                     String encodeContent = response.split("\"content\":")[1].split("\"")[1];
