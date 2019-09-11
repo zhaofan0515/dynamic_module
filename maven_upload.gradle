@@ -1,0 +1,400 @@
+apply plugin: 'maven'
+//apply from: getRootDir().toString() + "\\" + 'utils.gradle'
+//apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/utils.gradle'
+
+ext.remoteMap = new HashMap<>()
+
+afterEvaluate {
+    def findBundleTask = { String name ->
+        def task = tasks.findByName("bundle${name}Aar")
+        if (null == task) {
+            task = tasks.findByName("bundle${name}")
+        }
+        return task
+    }
+
+    Map<String, Upload> uploadMap = new HashMap<>()
+    int variantsAmount = 0
+    int variantsIndex = 0
+    def ver = loc_version
+    def isDevelop = false
+
+    if (!isDevelopBranch()) {
+        ver = loc_version + "-SNAPSHOP"
+    } else {
+        isDevelop = true
+    }
+
+
+
+    android.libraryVariants.each { v ->
+        if (!v.name.endsWith("Release") || v.name.endsWith("PreRelease")) {
+            return
+        }
+
+        String variantName = v.name.capitalize()
+        String flavor = v.name
+        def flavorName = v.flavorName
+
+        def upload = tasks.create(project.archivesBaseName + "-${variantName}", Upload) {
+
+            configuration = configurations.archives
+            repositories {
+                mavenDeployer {
+                    repository(url: uri(getMavenUrl())) {
+                        authentication(userName: 'admin', password: 'admin123')
+                    }
+
+                    addFilter(flavor) { artifact, file ->
+                        println "================================== file.name " + file.name + " " + flavor
+                        println file.name
+
+                        uploadMap.remove(flavor)
+
+                        for (Map.Entry<String, Upload> entry : uploadMap.entrySet()) {
+                            entry.getValue().execute()
+                            break
+                        }
+
+                        true
+                    }
+
+                    pom(flavor).project {
+                        groupId loc_groupId
+                        artifactId project.archivesBaseName + "-" + flavor
+                        version ver
+                        name project.archivesBaseName
+                        packaging "aar"
+                    }
+
+                    pom(flavor).withXml {
+                        def root = asNode()
+                        def depsNode = root["dependencies"][0] ?: root.appendNode("dependencies")
+                        def addDep = {
+                            if (it.group == null) return
+                            def dependencyNode = depsNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            if (it.hasProperty('optional') && it.optional) {
+                                dependencyNode.appendNode('optional', 'true')
+                            }
+
+                            if (it instanceof ModuleDependency) {
+                                it.artifacts.each { artifact ->
+                                    if (!artifact.classifier.isEmpty()) {
+                                        dependencyNode.appendNode('classifier', artifact.classifier)
+                                    }
+                                    if (!artifact.type.isEmpty()) {
+                                        dependencyNode.appendNode('type', artifact.type)
+                                    }
+                                }
+                            }
+                        }
+                        // Add deps that everyone has
+                        configurations.api.allDependencies.each addDep
+                        configurations.implementation.allDependencies.each addDep
+                        // Add flavor specific deps
+                        if (!flavorName.isEmpty()) {
+                            configurations["${flavor}Implementation"].allDependencies.each addDep
+                            configurations["${flavorName}Implementation"].allDependencies.each addDep
+                            configurations["${flavor}Api"].allDependencies.each addDep
+                            configurations["${flavorName}Api"].allDependencies.each addDep
+                        }
+                    }
+
+
+
+                    group = 'upload'
+                    android.libraryVariants.all { variant ->
+                        dependsOn(findBundleTask(variant.name.capitalize()))
+                    }
+                    doFirst {
+                        println "===================================== doFirst " + getDependsOn()
+                        artifacts {
+                            println "=====================================  archives2222 " + variantName
+                            archives findBundleTask(variantName)
+                        }
+                    }
+
+                    doLast {
+                        println "=====================================  doLast "
+
+                        if (++variantsIndex == variantsAmount) {
+                            uploadFinish(project.archivesBaseName, ver, isDevelop)
+                        }
+                    }
+                }
+            }
+        }
+
+        uploadMap.put(flavor, upload)
+        String remoteKey = project.archivesBaseName + "-" + flavor
+        remoteMap.put(remoteKey, loc_groupId + ':' + remoteKey + ':$versions.' + project.archivesBaseName)
+        variantsAmount++
+
+    }
+}
+
+ext.requestCount = 0
+ext._module = ""
+ext._version = ""
+ext._isDevelop = false
+
+
+def uploadFinish(String module, String version, boolean isDevelop) {
+    log("uploadFinish", module + " " + version + " " + isDevelop)
+
+    _module = module
+    _version = version
+    _isDevelop = isDevelop
+    requestCount = 0
+    getApi2()
+}
+
+
+def getApi2() {
+
+    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+            { code, response ->
+
+                if (code == 200) {
+                    String sha = response.split("\"sha\":")[1].split("\"")[1];
+                    String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                    log("maven_config sha", sha)
+                    log("maven_config encodeContent", encodeContent)
+
+                    postVersions(encodeContent, sha);
+                } else {
+                    if (requestCount++ < 3) {
+                        getApi2()
+                    } else {
+                        throwError(response)
+                    }
+                }
+            }
+    )
+
+
+}
+
+def postVersions(String encodeContent, final String sha) {
+
+    String versionStr = "versions." + _module;
+    String content = base64Decode(encodeContent)
+
+    String[] b = content.split("remote_module")[0].split("//product environment");
+
+    String c = "";
+    int index = -1;
+    if (_isDevelop) {
+        if (containsVersionStr(b[1], _module)) {
+            c = b[1];
+            index = 1;
+        } else if (containsVersionStr(b[0], _module)) {
+            c = b[0];
+            index = 0;
+        } else {
+            index = -1;
+        }
+    } else {
+        if (containsVersionStr(b[0], _module)) {
+            c = b[0];
+            index = 0;
+        } else {
+            index = -1;
+        }
+    }
+
+    if (index == -1) {
+        content = addNerVersion(content)
+    } else {
+        String ver = c.split(versionStr)[1].split("\"")[1];
+        String lib = versionStr + " = " + "\"" + ver + "\"";
+
+        String[] i = c.split(lib);
+
+        String newLib = versionStr + " = " + "\"" + _version + "\"";
+
+        String d = i[0] + newLib + i[1];
+
+        if (index == 0) {
+            content = d + "//product environment" + b[1] + "remote_module" + content.split("remote_module")[1];
+        } else {
+            content = b[0] + "//product environment" + d + "remote_module" + content.split("remote_module")[1];
+        }
+    }
+
+    content = addRemote(content)
+
+
+    log("post new version", content + "\n")
+
+    final String pushEncodeContent = base64Encode(content).replace("\n", "\\n");
+
+    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
+
+    requestMethod("PUT", getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(), body,
+            { code, response ->
+                if (code == 200) {
+                    log("maven_config upload success", code)
+                    refreshFile()
+                } else {
+                    if (requestCount++ < 3) {
+                        getApi2()
+                    } else {
+                        throwError(response)
+                    }
+                }
+            }
+    )
+
+
+}
+
+
+def containsVersionStr(String content, String versionStr) {
+    String[] split = content.replace("\n", "").replace("\r", "").replace(" ", "").split("versions.")
+    for (String s : split) {
+        if (s.split("=")[0].trim().equals(versionStr)) {
+            return true
+        }
+    }
+    return false
+}
+
+def addNerVersion(String content) {
+    String[] b = content.split("remote_module")[0].split("//product environment");
+    String versionStr = "versions." + _module;
+    String newLib = versionStr + " = " + "\"" + _version + "\"";
+
+    if (_isDevelop) {
+        if (!containsVersionStr(b[1], _module)) {
+            String label = "//product environment"
+            int i = content.indexOf(label) + label.length()
+            String add = "\n" + "    " + newLib
+            content = content.substring(0, i) + add + content.substring(i, content.length())
+        }
+
+        if (!containsVersionStr(b[0], _module)) {
+            String label = "//normal environment"
+            int i = content.indexOf(label) + label.length()
+            String add = "\n" + newLib
+            content = content.substring(0, i) + add + content.substring(i, content.length())
+        }
+    } else {
+        if (!containsVersionStr(b[0], _module)) {
+            String label = "//normal environment"
+            int i = content.indexOf(label) + label.length()
+            String add = "\n" + newLib
+            content = content.substring(0, i) + add + content.substring(i, content.length())
+        }
+    }
+
+    return content
+}
+
+def addRemote(String content) {
+    String label = "ext.remote_module = \\["
+    String[] b = content.split(label);
+
+    StringBuilder sb = new StringBuilder();
+    def it = remoteMap.entrySet().iterator()
+    while (it.hasNext()) {
+        def ent = it.next();
+        String remoteName = ent.getKey()
+        log("=========addRemote", remoteName + " " + containsRemoteName(b[1], remoteName))
+
+        if (!containsRemoteName(b[1], remoteName)) {
+            sb.append("        \'" + remoteName + "\':" + "\"" + ent.getValue() + "\"," + "\n")
+        }
+    }
+
+    log("=========addRemote sb", sb + "\n")
+
+    if (sb.length() == 0) {
+        return content
+    }
+
+
+    String tag = "//" + _module
+    if (!content.contains(tag)) {
+        sb.insert(0, "        " + tag + "\n")
+        tag = "ext.remote_module"
+    } else {
+        if (sb.toString().endsWith("\n")) {
+            sb.delete(sb.length() - 1, sb.length())
+        }
+    }
+
+    int i = content.indexOf(tag) + tag.length() + content.split(tag)[1].indexOf("\n")
+
+    String add = "\n" + sb
+    content = content.substring(0, i) + add + content.substring(i, content.length())
+
+    return content
+
+}
+
+
+def containsRemoteName(String content, String versionStr) {
+    String[] split = content.replace("\n", "").replace("\r", "").replace(" ", "").split("'")
+    for (String s : split) {
+        if (s.trim().equals(versionStr)) {
+            return true
+        }
+    }
+    return false
+}
+
+
+ext.refreshFileCount = 0
+
+
+def refreshFile() {
+
+    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+            { code, response ->
+                if (code == 200) {
+                    String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+
+                    String content = base64Decode(encodeContent)
+
+                    File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
+
+                    saveFile(file, content)
+
+                    log("maven_config refresh local seccess", code)
+
+                } else {
+                    if (refreshFileCount++ < 3) {
+                        refreshFile()
+                    } else {
+                        throwError(response)
+                    }
+                }
+            }
+    )
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
