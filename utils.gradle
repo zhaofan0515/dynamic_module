@@ -97,7 +97,7 @@ ext.isOffline = {
     def offline = getLocalProperties("module_config.properties")["offline"]
     if (!offline || offline.equals("false")) {
         return false
-    }else 
+    } else
         return true
 }
 
@@ -124,9 +124,10 @@ ext.base64Decode = { String encodeContent ->
     String content = new String(decoder.decode(encodeContent.replace("\\n", "")), "UTF-8")
     return content
 }
+
 ext.base64Encode = { String content ->
     java.util.Base64.Encoder encoder = java.util.Base64.getEncoder()
-    String pushEncodeContent = new String(encoder.encode(content.getBytes()), "UTF-8")
+    String pushEncodeContent = new String(encoder.encode(content.getBytes("UTF-8")), "UTF-8")
     return pushEncodeContent
 }
 
