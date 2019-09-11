@@ -82,19 +82,19 @@ ext.getLocalProperties = { String fileName ->
 }
 
 ext.getToken = {
-    return getLocalProperties("maven_config.properties")["token"]
+    return getLocalProperties("module_config.properties")["token"]
 }
 
 ext.getMavenUrl = {
-    return getLocalProperties("maven_config.properties")["mavenUrl"]
+    return getLocalProperties("module_config.properties")["mavenUrl"]
 }
 
 ext.getVersionUrl = {
-    return getLocalProperties("maven_config.properties")["versionUrl"]
+    return getLocalProperties("module_config.properties")["versionUrl"]
 }
 
 ext.isOffline = {
-    return getLocalProperties("maven_config.properties")["offline"]
+    return getLocalProperties("module_config.properties")["offline"]
 }
 
 ext.rootPath = {
