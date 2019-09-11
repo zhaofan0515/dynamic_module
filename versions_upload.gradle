@@ -49,9 +49,7 @@ def getApi3() {
 
 
 def postVersions(String content, final String sha) {
-    java.util.Base64.Encoder encoder = java.util.Base64.getEncoder();
-    final String pushEncodeContent = new String(encoder.encode(content.getBytes()), "UTF-8")
-            .replace("\n", "\\n");
+    final String pushEncodeContent = base64Encode(content).replace("\n", "\\n");
 
     String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
 
@@ -79,9 +77,7 @@ def refreshFile() {
             { code, response ->
                 if (code == 200) {
                     String encodeContent = response.split("\"content\":")[1].split("\"")[1];
-
-                    java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
-                    String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
+                    String content = base64Decode(encodeContent)
 
                     File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
 
