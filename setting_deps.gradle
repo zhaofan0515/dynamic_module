@@ -1,6 +1,6 @@
+apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
 apply from: getRootDir().toString() + "\\" + 'settings_module.gradle'
 apply from: getRootDir().toString() + "\\" + 'version_module.gradle'
-apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
 
 
 def configurationsMap = new HashMap()
