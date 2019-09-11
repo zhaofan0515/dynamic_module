@@ -80,7 +80,7 @@ def postVersions(String content, final String sha, String fileName) {
             { code, response ->
                 if (code == 200) {
                     log("upload_versions success", code)
-                    refreshFile()
+                    refreshFile(fileName)
                 } else {
                     throwError(response)
                 }
@@ -90,13 +90,14 @@ def postVersions(String content, final String sha, String fileName) {
 
 ext.refreshFileCount = 0
 
-def refreshFile() {
+def refreshFile(String fileName) {
 
-    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+    requestGet(getVersionUrl() + "/contents/" + fileName + "? access_token = " + getToken(),
             { code, response ->
                 if (code == 200) {
                     String encodeContent = response.split("\"content\":")[1].split("\"")[1];
                     String content = base64Decode(encodeContent)
+                    log("upload_versions refresh local seccess", content)
 
                     File file = new File(applyVersionModule())
 
