@@ -93,6 +93,9 @@ ext.getVersionUrl = {
     return getLocalProperties("maven_config.properties")["versionUrl"]
 }
 
+ext.isOffline = {
+    return getLocalProperties("maven_config.properties")["offline"]
+}
 
 ext.rootPath = {
     return getRootDir().toString() + "\\"
