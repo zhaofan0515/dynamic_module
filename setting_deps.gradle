@@ -1,6 +1,6 @@
-apply from: 'settings_module.gradle'
-apply from: 'version_module.gradle'
-apply from: 'utils.gradle'
+apply from: getRootDir().toString() + "\\" + 'settings_module.gradle'
+apply from: getRootDir().toString() + "\\" + 'version_module.gradle'
+apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
 
 
 def configurationsMap = new HashMap()
@@ -8,6 +8,10 @@ def configurationsMap = new HashMap()
 gradle.allprojects({ project ->
     configurations {
         configurationsMap.put(project.name, configurations)
+    }
+
+    repositories {
+        maven { url uri(getMavenUrl()) }
     }
 })
 
@@ -41,8 +45,8 @@ gradle.ext.compile = { project, name ->
 
 gradle.ext.compileRemote = { project, name ->
     def handler = project.dependencies
-    println "99999999999999999999999999999999 dependencies remote " + //project.android.applicationVariants+" "+
-            project + " " + rootProject.subprojects + " " + rootProject.subprojects[0]
+    println "99999999999999999999999999999999999999999 dependencies remote " + //project.android.applicationVariants+" "+
+            project + " \n\n" + rootProject.subprojects[0].android.applicationVariants[0].name
 
     rootProject.subprojects[0].android.applicationVariants.all { v ->
         String flavorShort = ""
@@ -109,14 +113,14 @@ ext.moduleSwitch = { module ->
 
 ext.applySetting = {
     if (!isDevelopSetting()) {
-        apply from: 'private_settings.gradle'
+        apply from: getRootDir().toString() + "\\" + 'private_settings.gradle'
     }
 }
 
 
 ext.isDevelopSetting = {
     File localFile = new File('private_settings.gradle')
-    if (!localFile.exists() ||isDevelopBranch()) {
+    if (!localFile.exists() || isDevelopBranch()) {
         return true
     } else {
         return false
