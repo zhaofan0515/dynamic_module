@@ -245,3 +245,25 @@ public interface Callback {
     void onResponse(int code, String response)
 }
 
+
+ext.applyBuildConfig = {
+    return rootPath() + "build_config.gradle"
+}
+
+
+ext.applyMavenUpload = {
+    return gradlePath() + "maven_upload.gradle"
+}
+
+ext.applyVersionUpload = {
+    return gradlePath() + "versions_upload.gradle"
+}
+
+
+ext.applyVersionModule = {
+    return rootPath() + "version_module.gradle"
+}
+
+ext.applyVersionLib = {
+    return rootPath() + "version_library.gradle"
+}
