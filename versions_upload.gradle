@@ -1,0 +1,119 @@
+apply plugin: 'maven'
+
+
+afterEvaluate {
+    def upload = tasks.create("uploadVersions", Upload) {
+        configuration = configurations.archives
+        repositories {
+            mavenDeployer {
+
+                group = 'upload'
+                doFirst {
+                    println "doFirst" + getDependsOn()
+
+                    getApi3()
+                }
+
+                doLast {
+                    println "doLast" + getDependsOn()
+                }
+            }
+        }
+    }
+}
+
+
+def getApi3() {
+
+    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+            { code, response ->
+                if (code == 200) {
+                    String sha = response.split("\"sha\":")[1].split("\"")[1];
+                    log("upload_versions sha ", sha)
+
+                    File file = new File(project.projectDir.toString() + "\\" + "version_module.gradle")
+                    if (!file.exists()) {
+                        throwError("请将需要修改的version_module.gradle文件复制到" + project.projectDir + "目录下")
+                    }
+
+                    String a = readFile(file)
+                    log("upload_versions readFile ", a)
+
+                    postVersions(a, sha)
+                } else {
+                    throwError(response)
+                }
+            }
+    )
+}
+
+
+def postVersions(String content, final String sha) {
+    java.util.Base64.Encoder encoder = java.util.Base64.getEncoder();
+    final String pushEncodeContent = new String(encoder.encode(content.getBytes()), "UTF-8")
+            .replace("\n", "\\n");
+
+    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
+
+    requestMethod("PUT", getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(), body,
+            { code, response ->
+                if (code == 200) {
+                    log("upload_versions success", code)
+                    File file = new File(project.projectDir.toString() + "\\" + "version_module.gradle")
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                    refreshFile()
+                } else {
+                    throwError(response)
+                }
+            }
+    )
+}
+
+ext.refreshFileCount = 0
+
+def refreshFile() {
+
+    requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+            { code, response ->
+                if (code == 200) {
+                    String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+
+                    java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+                    String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
+
+                    File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
+
+                    saveFile(file, content)
+
+                    log("upload_versions refresh local seccess", code)
+
+                } else {
+                    if (refreshFileCount++ < 3) {
+                        refreshFile()
+                    } else {
+                        throwError(response)
+                    }
+                }
+            }
+    )
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
