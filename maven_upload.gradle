@@ -360,7 +360,7 @@ def refreshFile() {
 
                     String content = base64Decode(encodeContent)
 
-                    File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
+                    File file = new File(applyVersionModule())
 
                     saveFile(file, content)
 
