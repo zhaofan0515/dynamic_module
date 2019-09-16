@@ -232,7 +232,14 @@ def postVersions(String encodeContent, final String sha) {
 
     final String pushEncodeContent = base64Encode(content).replace("\n", "\\n");
 
-    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
+    String conmitter = ""
+    String userName = getGitUserName()
+    String email = getGitUserEmail()
+    if (!userName.isEmpty() && !email.isEmpty()) {
+        conmitter = "," + "\"committer\": {" + "\"name\":\"" + userName + "\"," + "\"email\":\"" + email + "\"" + "}"
+    }
+
+    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"" + conmitter + "}"
 
     requestMethod("PUT", getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(), body,
             { code, response ->
