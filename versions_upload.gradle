@@ -62,7 +62,7 @@ def getGitApi(File file) {
                     String a = readFile(file)
                     log("upload_versions readFile ", a)
 
-                    postVersions(a, sha, fileName)
+                    postVersions(a, sha, file)
                 } else {
                     throwError(response)
                 }
@@ -71,16 +71,25 @@ def getGitApi(File file) {
 }
 
 
-def postVersions(String content, final String sha, String fileName) {
+def postVersions(String content, final String sha, File file) {
+    String fileName = file.getName()
+
     final String pushEncodeContent = base64Encode(content).replace("\n", "\\n");
 
-    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"}";
+    String conmitter = ""
+    String userName = getGitUserName()
+    String email = getGitUserEmail()
+    if (!userName.isEmpty() && !email.isEmpty()) {
+        conmitter = "," + "\"committer\": {" + "\"name\":\"" + userName + "\"," + "\"email\":\"" + email + "\"" + "}"
+    }
+
+    String body = "{\"message\":\"update\",\"sha\":\"" + sha + "\",\"content\":\"" + pushEncodeContent + "\"" + conmitter + "}"
 
     requestMethod("PUT", getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(), body,
             { code, response ->
                 if (code == 200) {
                     log("upload_versions success", code)
-                    refreshFile(fileName)
+                    refreshFile(file)
                 } else {
                     throwError(response)
                 }
@@ -90,7 +99,8 @@ def postVersions(String content, final String sha, String fileName) {
 
 ext.refreshFileCount = 0
 
-def refreshFile(String fileName) {
+def refreshFile(File file) {
+    String fileName = file.getName()
 
     requestGet(getVersionUrl() + "/contents/" + fileName + "?access_token=" + getToken(),
             { code, response ->
@@ -98,8 +108,6 @@ def refreshFile(String fileName) {
                     String encodeContent = response.split("\"content\":")[1].split("\"")[1];
                     String content = base64Decode(encodeContent)
                     log("upload_versions refresh local seccess", content)
-
-                    File file = new File(applyVersionModule())
 
                     saveFile(file, content)
 
