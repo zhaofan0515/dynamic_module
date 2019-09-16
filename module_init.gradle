@@ -1,60 +1,235 @@
-apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/utils.gradle'
+applyGradleUtils()
 
-downloadFile()
-download_setting_deps()
+Gradle gradle = getGradle()
+ext.tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
+println " =============================  tskReqStr " + " \n" + gradle.getStartParameter().getTaskNames()[0]
+
+def inTaskAndFileNotExists(String fileName) {
+    return tskReqStr.contains("app:mockableAndroidJar") || !new File(fileName).exists()
+}
 
 
-def download_setting_deps() {
-    try {
-        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/setting_deps.gradle?access_token="+ getToken();
-        println "=============================== download_setting_deps url: \n" + url_create
-        URL url = new URL(url_create);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(10 * 1000);
-        //4响应码
-        int code = conn.getResponseCode();
-        InputStream in2;
-        String msg = "";
-        if (code == 200) {
-            in2 = conn.getInputStream();
+if (inTaskAndFileNotExists(applyBuildConfig())) {
+    downloadBuildConfig()
+}
+
+if (inTaskAndFileNotExists(applyMavenUpload())) {
+    downloadMavenUpload()
+}
+
+if (inTaskAndFileNotExists(applyVersionUpload())) {
+    downloadVersionsUpload()
+}
+
+if (inTaskAndFileNotExists(applyVersionModule())) {
+    downloadVersionModule()
+}
+
+if (inTaskAndFileNotExists(applyVersionLib())) {
+    downloadVersionLib()
+}
+
+applySettingDeps()
+
+if (tskReqStr.contains("app:mockableAndroidJar")) {
+    addPrivateSetting()
+    createConfigProperties()
+    initCoreBuildConfig()
+
+}
+
+
+def getBuildConfigMap(File file) {
+    String str = readFile(file)
+    Map<String, String> buildConfigMap = new LinkedHashMap<>()
+    String[] a = str.split("afterEvaluate")[0].split("buildConfigField")
+    int index = 0
+    for (String b : a) {
+        if (index > 0) {
+            String[] c = b.split(",")
+            //c[0] 变量数据类型  c[1] 变量字段名
+            buildConfigMap.put(c[1].replace("\"", "").trim(), c[0].replace("\"", "").trim())
+            //  log("-==================== content", c[0] + " " + c[1])
+        }
+        index++
+    }
+    return buildConfigMap
+}
+
+def initCoreBuildConfig() {
+    String path = localBuildConfig()
+    if (path.isEmpty()) {
+        return
+    }
+    Map<String, String> coreConfigMap = new LinkedHashMap<>()
+    Map<String, String> buildConfigMap = new LinkedHashMap<>()
+    //default value
+    buildConfigMap.put("APPLICATION_ID", "String")
+    buildConfigMap.put("BUILD_TYPE", "String")
+    buildConfigMap.put("FLAVOR", "String")
+    buildConfigMap.put("VERSION_CODE", "int")
+    buildConfigMap.put("VERSION_NAME", "String")
+
+
+    File file = new File(applyBuildConfig())
+    buildConfigMap.putAll(getBuildConfigMap(file))
+
+    File file1 = new File(getRootDir().toString() + path)
+    String content = readFile(file1)
+    // content = new String(content.getBytes(), "UTF-8")
+    log("-==================== core", content + "\n\n\n")
+
+    String[] a1 = content.split("static")
+
+    int i = 0
+    for (String b1 : a1) {
+        if (i > 0) {
+            String[] c1 = b1.split(" ")
+            //c1[1] 变量数据类型  c1[2] 变量字段名
+            coreConfigMap.put(c1[2].replace(";", "").replace("\n", "").trim(), c1[1].replace("\n", "").trim())
+        }
+        i++
+    }
+
+    def isChanged = false
+    StringBuilder sb = new StringBuilder()
+    def it = buildConfigMap.entrySet().iterator()
+    while (it.hasNext()) {
+        def ent = it.next()
+        def defValue = ""
+        if (ent.getValue().equals("Boolean") || ent.getValue().equals("boolean")) {
+            defValue = "false"
+        } else if (ent.getValue().equals("Integer") || ent.getValue().equals("int")) {
+            defValue = "0"
         } else {
-            in2 = conn.getErrorStream();
+            defValue = "\"\""
         }
-        if (in2 != null) {
-            byte[] b = new byte[1024 * 512];
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            int len = 0;
-            while ((len = in2.read(b)) > -1) {
-                baos.write(b, 0, len);
+
+        if (!coreConfigMap.containsKey(ent.getKey())) {
+            sb.append("    public static " + ent.getValue() + " " + ent.getKey() + " = " + defValue + ";\n")
+            isChanged = true
+        } else {
+            //若数据类型不一致
+            String type = coreConfigMap.get(ent.getKey())
+            if (!type.equals(ent.getValue())) {
+                String[] d = content.split(ent.getKey())
+                int last = d[0].lastIndexOf(type)
+                String split = d[1].substring(d[1].indexOf(";"), d[1].length())
+                content = d[0].substring(0, last) + ent.getValue() + " " + ent.getKey() + " = " + defValue + split
+                isChanged = true
+
+                log("-==================== 若数据类型不一致", content)
             }
-            msg = baos.toString();
-            //  Log.e("TAG", msg);
-            println "=============================== download_setting_deps : \n" + msg
         }
+    }
 
-        if (code == 200) {
-            String encodeContent = msg.split("\"content\":")[1].split("\"")[1];
-            java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
-            String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
-
-            File file = new File(getRootDir().toString() + "\\" + "setting_deps.gradle")
-            file.createNewFile()
-
-            try {
-                FileWriter fw = new FileWriter(file)
-                fw.flush();
-                fw.write(content);
-                fw.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
+    def it2 = coreConfigMap.entrySet().iterator()
+    while (it2.hasNext()) {
+        def ent = it2.next()
+        if (!buildConfigMap.containsKey(ent.getKey())) {
+            //CoreBuildConfig中存在的多余的成员变量
+            String[] f = content.split(ent.getKey())
+            content = content.substring(0, f[0].lastIndexOf("\n")) + f[1].substring(f[1].indexOf("\n"), f[1].length())
+            isChanged = true
+            log("-==================== delete ", ent.getKey() + "\n\n\n" + content)
         }
 
 
-        apply from: getRootDir().toString() + "\\" + 'setting_deps.gradle'
+    }
 
+    log("-==================== StringBuilder", sb)
+
+    if (!isChanged) {
+        return
+    }
+
+
+    String[] split = content.split("}")
+    String newContent = split[0] + sb + "}"
+
+    log("-==================== content", newContent)
+
+    // saveFile(file1, content)
+
+    new Thread(new Runnable() {
+        @Override
+        void run() {
+            Thread.sleep(2000)
+            saveFile(file1, newContent)
+
+        }
+    }).start()
+
+
+}
+
+
+def addPrivateSetting() {
+    String private_setting = "private_settings.gradle"
+    File file1 = new File(getRootDir().toString() + "\\" + private_setting)
+
+    if (!file1.exists()) {
+        String str = readFile(new File(getRootDir().toString() + "\\" + "settings_module.gradle"))
+        if (str.isEmpty()) {
+            return
+        }
+        saveFile(file1, str)
+    }
+
+    File file = new File(getRootDir().toString() + "\\" + ".gitignore")
+
+    if (file.exists()) {
+        String str = readFile(file)
+        if (!str.contains(private_setting)) {
+            saveFile(file, str + "\n/" + private_setting + "\n")
+        }
+    }
+}
+
+
+def createConfigProperties() {
+    File file = new File(getRootDir().toString() + "\\" + "module_config.properties")
+
+    if (!file.exists()) {
+        file.createNewFile()
+        saveToLocal(file, "token", "")
+        saveToLocal(file, "versionUrl", "")
+        saveToLocal(file, "localBuildConfig", "")
+        saveToLocal(file, "mavenUrl", "")
+        saveToLocal(file, "userName", "")
+        saveToLocal(file, "password", "")
+    }
+
+    if (getToken().isEmpty()) {
+        throwError("请在" + file.getAbsoluteFile().name + "文件中填写正确的token值")
+    }
+
+}
+
+
+def applySettingDeps() {
+
+    try {
+        File file = new File(gradlePath() + "setting_deps.gradle")
+
+        if (!file.exists()) {
+            apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/setting_deps.gradle'
+        } else {
+            apply from: gradlePath() + 'setting_deps.gradle'
+        }
+
+        if (!file.exists() || !isOffline()) {
+            requestGet("https://api.github.com/repos/zhaofan0515/dynamic_module/contents/setting_deps.gradle?access_token=" + getToken(),
+                    { code, response ->
+                        if (code == 200) {
+                            String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                            String content = base64Decode(encodeContent)
+                            saveFile(file, content)
+                        }
+                    })
+        }
+
+        apply from: gradlePath() + 'setting_deps.gradle'
 
     } catch (Exception e) {
         e.printStackTrace();
@@ -64,56 +239,50 @@ def download_setting_deps() {
 }
 
 
-def downloadFile() {
+def applyGradleUtils() {
     try {
-        String url_create = "https://api.github.com/repos/zhaofan0515/version/contents/1.txt?access_token=d886f45419849645266807d9a32c5f4af6c38797";
-        URL url = new URL(url_create);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(10 * 1000);
-        //4响应码
-        int code = conn.getResponseCode();
-        InputStream in2;
-        String msg = "";
-        if (code == 200) {
-            in2 = conn.getInputStream();
+        File file = new File(getRootDir().toString() + "\\gradle\\" + "utils.gradle")
+
+        if (!file.exists()) {
+            apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/utils.gradle'
         } else {
-            in2 = conn.getErrorStream();
-        }
-        if (in2 != null) {
-            byte[] b = new byte[1024 * 512];
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            int len = 0;
-            while ((len = in2.read(b)) > -1) {
-                baos.write(b, 0, len);
-            }
-            msg = baos.toString();
-            //  Log.e("TAG", msg);
-            //   println "2222222222222222222222222222222222222222222222222222223333 zhaofanfanfan downloadFile " + msg
-
+            apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
         }
 
-        if (code == 200) {
-            String encodeContent = msg.split("\"content\":")[1].split("\"")[1];
-            java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
-            String content = new String(decoder.decode(encodeContent.replace("\\n", "")));
-            println("============================file\n" + getRootDir().toString() + "\\" + "1.gradle")
-
-            // File file = new File(getRootDir().toString()+"\\gradle\\"+"1.gradle")
-            File file = new File(getRootDir().toString() + "\\" + "version_module.gradle")
-            file.createNewFile()
-
-            try {
-                FileWriter fw = new FileWriter(file)
-                fw.flush();
-                fw.write(content);
-                fw.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
+        if (!file.exists() || !isOffline()) {
+            requestGet("https://api.github.com/repos/zhaofan0515/dynamic_module/contents/utils.gradle?access_token=" + getToken(),
+                    { code, response ->
+                        if (code == 200) {
+                            String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                            String content = base64Decode(encodeContent)
+                            saveFile(file, content)
+                        }
+                    })
         }
 
+        apply from: gradlePath() + 'utils.gradle'
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+}
+
+
+def downloadVersionModule() {
+    try {
+        File file = new File(applyVersionModule())
+
+        if (!file.exists() || !isOffline()) {
+            requestGet(getVersionUrl() + "/contents/version_module.gradle?access_token=" + getToken(),
+                    { code, response ->
+                        if (code == 200) {
+                            String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                            String content = base64Decode(encodeContent)
+                            saveFile(file, content)
+                        }
+                    })
+        }
 
     } catch (Exception e) {
         e.printStackTrace();
@@ -122,3 +291,78 @@ def downloadFile() {
 
 }
 
+
+def downloadVersionLib() {
+    try {
+        File file = new File(applyVersionLib())
+
+        if (!file.exists() || !isOffline()) {
+            requestGet(getVersionUrl() + "/contents/version_library.gradle?access_token=" + getToken(),
+                    { code, response ->
+                        if (code == 200) {
+                            String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                            String content = base64Decode(encodeContent)
+                            saveFile(file, content)
+                        }
+                    })
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+
+}
+
+
+def downloadMavenUpload() {
+    File file = new File(applyMavenUpload())
+    if (!file.exists() || !isOffline()) {
+        requestGet("https://api.github.com/repos/zhaofan0515/dynamic_module/contents/maven_upload.gradle?access_token=" + getToken(),
+                { code, response ->
+                    if (code == 200) {
+                        String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                        String content = base64Decode(encodeContent)
+                        saveFile(file, content)
+                    }
+                })
+    }
+}
+
+
+def downloadVersionsUpload() {
+    File file = new File(applyVersionUpload())
+    if (!file.exists() || !isOffline()) {
+        requestGet("https://api.github.com/repos/zhaofan0515/dynamic_module/contents/versions_upload.gradle?access_token=" + getToken(),
+                { code, response ->
+                    if (code == 200) {
+                        String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                        String content = base64Decode(encodeContent)
+                        saveFile(file, content)
+                    }
+                })
+    }
+}
+
+
+def downloadBuildConfig() {
+    try {
+        File file = new File(applyBuildConfig())
+
+        if (!file.exists() || !isOffline()) {
+            requestGet(getVersionUrl() + "/contents/build_config.gradle?access_token=" + getToken(),
+                    { code, response ->
+                        if (code == 200) {
+                            String encodeContent = response.split("\"content\":")[1].split("\"")[1];
+                            String content = base64Decode(encodeContent)
+                            saveFile(file, content)
+                        }
+                    })
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+
+}
