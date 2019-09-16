@@ -101,6 +101,10 @@ ext.isOffline = {
         return true
 }
 
+ext.localBuildConfig ={
+    return getLocalProperties("module_config.properties")["localBuildConfig"]
+}
+
 ext.rootPath = {
     return getRootDir().toString() + "\\"
 }
@@ -111,12 +115,22 @@ ext.gradlePath = {
 
 
 ext.isDevelopBranch = {
-    String gitBranch = 'git symbolic-ref --short -q HEAD'.execute(null, rootProject.projectDir).text.trim()
+    String gitBranch = 'git symbolic-ref --short -q HEAD'.execute(null, getRootDir()).text.trim()
     if (gitBranch.contains("develop") || gitBranch.contains("master")) {
         return true
     } else {
         return false
     }
+}
+
+ext.getGitUserName = {
+    String user = 'git config --global --get user.name'.execute(null, getRootDir()).text.trim()
+    return user
+}
+
+ext.getGitUserEmail = {
+    String user = 'git config --global --get user.email'.execute(null, getRootDir()).text.trim()
+    return user
 }
 
 ext.base64Decode = { String encodeContent ->
@@ -173,76 +187,87 @@ ext.saveFile = { File file, String content ->
 }
 
 ext.requestGet = { String url, Callback callback ->
-    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-    conn.setRequestMethod("GET");
-    conn.setConnectTimeout(10 * 1000);
-    //4响应码
-    int code = conn.getResponseCode();
-    InputStream in2;
-    String msg = "";
-    if (code == 200) {
-        in2 = conn.getInputStream();
-    } else {
-        in2 = conn.getErrorStream();
-    }
-
-    if (in2 != null) {
-        byte[] b = new byte[1024 * 512];
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int len = 0;
-        while ((len = in2.read(b)) > -1) {
-            baos.write(b, 0, len);
+    try {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10 * 1000);
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
         }
-        msg = baos.toString();
-        log("get request " + url, code + "  " + msg)
 
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            log("get request " + url, code + "  " + msg)
+
+        }
+
+        callback.onResponse(code, msg)
+
+    } catch (Exception e) {
+        e.printStackTrace()
     }
 
-    callback.onResponse(code, msg)
 
 }
 
 
 
 ext.requestMethod = { String method, String url, String body, Callback callback ->
-    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-    conn.setRequestProperty("Authorization", "token " + getToken());
+    try {
 
-    conn.setRequestMethod(method);
-    conn.setConnectTimeout(10 * 1000);
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestProperty("Authorization", "token " + getToken());
 
-    //请求头的信息
-    conn.setRequestProperty("Content-Length", String.valueOf(body.length()));
-    conn.setRequestProperty("Cache-Control", "max-age=0");
+        conn.setRequestMethod(method);
+        conn.setConnectTimeout(10 * 1000);
 
-    //设置conn可以写请求的内容
-    conn.setDoOutput(true);
-    conn.getOutputStream().write(body.getBytes());
+        //请求头的信息
+        conn.setRequestProperty("Content-Length", String.valueOf(body.length()));
+        conn.setRequestProperty("Cache-Control", "max-age=0");
 
-    //4响应码
-    int code = conn.getResponseCode();
-    InputStream in2;
-    String msg = "";
-    if (code == 200) {
-        in2 = conn.getInputStream();
-    } else {
-        in2 = conn.getErrorStream();
-    }
+        //设置conn可以写请求的内容
+        conn.setDoOutput(true);
+        conn.getOutputStream().write(body.getBytes());
 
-    if (in2 != null) {
-        byte[] b = new byte[1024 * 512];
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int len = 0;
-        while ((len = in2.read(b)) > -1) {
-            baos.write(b, 0, len);
+        //4响应码
+        int code = conn.getResponseCode();
+        InputStream in2;
+        String msg = "";
+        if (code == 200) {
+            in2 = conn.getInputStream();
+        } else {
+            in2 = conn.getErrorStream();
         }
-        msg = baos.toString();
-        //  Log.e("TAG", msg);
-        log(method + " request " + url, code + "  " + msg)
+
+        if (in2 != null) {
+            byte[] b = new byte[1024 * 512];
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int len = 0;
+            while ((len = in2.read(b)) > -1) {
+                baos.write(b, 0, len);
+            }
+            msg = baos.toString();
+            //  Log.e("TAG", msg);
+            log(method + " request " + url, code + "  " + msg)
+        }
+
+        callback.onResponse(code, msg)
+
+    } catch (Exception e) {
+        e.printStackTrace()
     }
-
-    callback.onResponse(code, msg)
-
 }
 
 
