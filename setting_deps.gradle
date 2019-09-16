@@ -13,33 +13,67 @@ gradle.allprojects({ project ->
     repositories {
         maven { url uri(getMavenUrl()) }
     }
+
+    //统一版本号
+    project.configurations.all {
+        resolutionStrategy.eachDependency { details ->
+
+            if (remote_module.containsKey(details.requested.name)) {
+                details.useTarget(remote_module[details.requested.name])
+            }
+
+            if (details.requested.group == 'com.android.support'
+                    && !details.requested.name.contains('multidex')) {
+                details.useVersion versions.support
+            }
+        }
+    }
 })
+
+
 
 
 gradle.ext.compile = { project, name ->
     applySetting()
     def handler = project.dependencies
 
-    println "33333333333333333333333333333333333333333333 dependencies: " + name + "  setting_module: " + setting_module
+
+    println "  setting_module: " + setting_module
+    log("======================== dependencies ", name)
 
     if (setting_module.isEmpty()) {
         return
     }
-
-    def ver = setting_module[name]
-    if (!ver) {
-        if (setting_module.containsKey(name)) {
-            handler.api project.project(":$name")
-        } else {
-            //don't compile
-        }
-    } else if (ver == 'remote') {
-        gradle.ext.compileRemote(project, name)
-
-    } else if (ver == 'false') {
-        //don't compile
+    if (!setting_module.containsKey(name)) {
+        return
     }
 
+    def ver = setting_module[name]
+    if (ver.isEmpty()) {
+        handler.api project.project(":$name")
+        println "dependencies api project :$name\n"
+    } else if (ver == 'remote') {
+        gradle.ext.compileRemote(project, name)
+        println "dependencies api remote :$name\n"
+    } else if (ver.startsWith(":")) {
+        handler.api project.project(":$name")
+        println "dependencies api project :$name\n"
+
+        String[] a = ver.replace(":", "").trim().split(",")
+        for (String i : a) {
+            handler.api project.project(":$i")
+            println "dependencies api project :$i\n"
+            /*      if (setting_module.containsKey(i) && !setting_module.get(i)) {
+                      handler.api project.project(":$name")
+                      println "dependencies api project :$name\n"
+                      break
+                  }*/
+        }
+    } else if (ver == 'false') {
+        //don't compile
+    } else {
+        //don't compile
+    }
 }
 
 
@@ -95,7 +129,6 @@ gradle.ext.compileRemote = { project, name ->
 
         if (remote_lib) {
             println "99999999999999999999999999999999 dependencies remote " + methodName + " " + remote_lib
-
             handler.add(methodName, remote_lib)
         }
     }
@@ -107,7 +140,62 @@ gradle.ext.compileRemote = { project, name ->
 ext.moduleSwitch = { module ->
     applySetting()
     println "77777777777777777777777 dependencies selectModule " + setting_module
-    return setting_module
+    def settingInclude = new HashMap<>()
+
+    if(setting_module.isEmpty()){
+        return settingInclude
+    }
+    def it = setting_module.entrySet().iterator()
+
+    println "77777777777777777777777 dependencies entrySet " + it
+
+    while (it.hasNext()) {
+        def ent = it.next()
+        if (ent.getValue().isEmpty()) {
+            settingInclude.put(ent.getKey(), "")
+        } else if (ent.getValue().startsWith(":")) {
+            String[] a = ent.getValue().replace(":", "").trim().split(",")
+            settingInclude.put(ent.getKey(), "")
+
+            for (String i : a) {
+                println "77777777777777777777777 dependencies containsKey " + i + " " + setting_module
+                settingInclude.put(i, "")
+
+                /*     if (setting_module.containsKey(i)) {
+                         if (!setting_module.get(i)) {
+                             println "77777777777777777777777 dependencies putputput " + ent.getKey()
+                             settingInclude.put(ent.getKey(), "")
+                         } else {
+
+                         }
+                         break
+                     }*/
+            }
+        }
+    }
+    println "77777777777777777777777 dependencies settingMap " + settingInclude
+
+    return settingInclude
+
+}
+
+ext.map = { String str ->
+    if (str.startsWith(":")) {
+        String[] a = str.replace(":", "").trim().split(",")
+
+        for (String i : a) {
+            println "77777777777777777777777 dependencies containsKey " + i + " " + setting_module
+            if (setting_module.containsKey(i)) {
+                if (!setting_module.get(i)) {
+                    println "77777777777777777777777 dependencies putputput " + ent.getKey()
+                    settingInclude.put(ent.getKey(), "")
+                } else {
+
+                }
+                break
+            }
+        }
+    }
 
 }
 
@@ -119,7 +207,7 @@ ext.applySetting = {
 
 
 ext.isDevelopSetting = {
-    File localFile = new File('private_settings.gradle')
+    File localFile = new File(getRootDir().toString() + "\\" + 'private_settings.gradle')
     if (!localFile.exists() || isDevelopBranch()) {
         return true
     } else {
