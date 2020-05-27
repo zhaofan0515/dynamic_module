@@ -1,4 +1,4 @@
-apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
+1apply from: getRootDir().toString() + "\\gradle\\" + 'utils.gradle'
 apply from: getRootDir().toString() + "\\" + 'settings_module.gradle'
 apply from: applyVersionModule()
 
