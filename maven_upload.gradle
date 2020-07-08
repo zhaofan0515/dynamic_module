@@ -1,4 +1,4 @@
-1.5apply plugin: 'maven'
+1.6apply plugin: 'maven'
 //apply from: getRootDir().toString() + "\\" + 'utils.gradle'
 //apply from: 'https://raw.githubusercontent.com/zhaofan0515/dynamic_module/master/utils.gradle'
 
