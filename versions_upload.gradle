@@ -1,4 +1,4 @@
-apply plugin: 'maven'
+7apply plugin: 'maven'
 
 
 afterEvaluate {
