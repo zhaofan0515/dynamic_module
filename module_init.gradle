@@ -1,4 +1,4 @@
-2applyGradleUtils()
+1.5applyGradleUtils()
 
 Gradle gradle = getGradle()
 ext.tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
