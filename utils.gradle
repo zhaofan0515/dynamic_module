@@ -7,7 +7,7 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 
-ext.getCurrentFlavor = { String libName, String defaultName ->
+aa2ext.getCurrentFlavor = { String libName, String defaultName ->
     println "getCurrentFlavor args:" + libName + "," + defaultName
 
     Gradle gradle = getGradle()
