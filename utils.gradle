@@ -5,7 +5,7 @@
 
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-
+m
 
 ext.getCurrentFlavor = { String libName, String defaultName ->
     println "getCurrentFlavor args:" + libName + "," + defaultName
