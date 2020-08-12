@@ -1,5 +1,5 @@
 applyGradleUtils()
-
+r
 Gradle gradle = getGradle()
 ext.tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
 println " =============================  tskReqStr " + " \n" + gradle.getStartParameter().getTaskNames()[0]
